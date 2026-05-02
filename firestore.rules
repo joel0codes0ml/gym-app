@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validations ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'fullName', 'goal', 'fitnessLevel']) 
+        && data.id == request.auth.uid 
+        && data.fullName is string && data.fullName.size() <= 100
+        && data.goal in ['muscle_gain', 'fat_loss', 'endurance', 'general']
+        && data.fitnessLevel in ['beginner', 'intermediate', 'advanced']
+        && (data.avatarUrl == null || (data.avatarUrl is string && data.avatarUrl.size() <= 500))
+        && (data.age == null || (data.age is number && data.age >= 0 && data.age <= 150))
+        && (data.weightKg == null || (data.weightKg is number && data.weightKg >= 0))
+        && (data.heightCm == null || (data.heightCm is number && data.heightCm >= 0));
+    }
+
+    function isValidWorkout(data) {
+      return data.keys().hasAll(['id', 'userId', 'date', 'planName', 'exercises'])
+        && data.userId == request.auth.uid
+        && data.planName is string && data.planName.size() <= 100
+        && data.exercises is list && data.exercises.size() <= 50;
+    }
+
+    function isValidNutrition(data) {
+      return data.keys().hasAll(['id', 'userId', 'date'])
+        && data.userId == request.auth.uid
+        && data.date is string && data.date.size() <= 20;
+    }
+
+    function isValidProgress(data) {
+      return data.keys().hasAll(['id', 'userId', 'date'])
+        && data.userId == request.auth.uid;
+    }
+
+    // --- Collection Matches ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) 
+        && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'avatarUrl', 'age', 'weightKg', 'heightCm', 'goal', 'fitnessLevel', 'planId', 'subscriptionTier', 'streakDays']);
+    }
+
+    match /workouts/{workoutId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidWorkout(incoming()) && isValidId(workoutId);
+      allow update: if isSignedIn() && existing().userId == request.auth.uid && incoming().userId == request.auth.uid && isValidWorkout(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['completed', 'exercises', 'durationMinutes']);
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    match /nutrition/{nutritionId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidNutrition(incoming()) && isValidId(nutritionId);
+      allow update: if isSignedIn() && existing().userId == request.auth.uid && incoming().userId == request.auth.uid && isValidNutrition(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['calories', 'protein', 'carbs', 'fat', 'waterGlasses', 'meals']);
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    match /progress/{progressId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidProgress(incoming()) && isValidId(progressId);
+      allow update: if isSignedIn() && existing().userId == request.auth.uid && incoming().userId == request.auth.uid && isValidProgress(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['weightKg', 'bodyFatPct', 'benchKg', 'squatKg', 'deadliftKg', 'notes']);
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+  }
+}

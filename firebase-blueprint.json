@@ -1,0 +1,116 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and physical stats",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fullName": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "age": { "type": "number" },
+        "weightKg": { "type": "number" },
+        "heightCm": { "type": "number" },
+        "goal": { "type": "string", "enum": ["muscle_gain", "fat_loss", "endurance", "general"] },
+        "fitnessLevel": { "type": "string", "enum": ["beginner", "intermediate", "advanced"] },
+        "planId": { "type": "string" },
+        "subscriptionTier": { "type": "string", "enum": ["free", "pro", "elite"] },
+        "streakDays": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "fullName", "goal", "fitnessLevel"]
+    },
+    "Workout": {
+      "title": "Workout Log",
+      "description": "Historical record of a completed training session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "planName": { "type": "string" },
+        "durationMinutes": { "type": "number" },
+        "completed": { "type": "boolean" },
+        "exercises": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "sets": { "type": "number" },
+              "reps": { "type": "number" },
+              "weight": { "type": "number" },
+              "completed": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "required": ["id", "userId", "date", "planName", "exercises"]
+    },
+    "Nutrition": {
+      "title": "Nutrition Log",
+      "description": "Daily food and hydration tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "calories": { "type": "number" },
+        "protein": { "type": "number" },
+        "carbs": { "type": "number" },
+        "fat": { "type": "number" },
+        "waterGlasses": { "type": "number" },
+        "meals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "time": { "type": "string" },
+              "calories": { "type": "number" },
+              "protein": { "type": "number" },
+              "carbs": { "type": "number" },
+              "fat": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["id", "userId", "date"]
+    },
+    "Progress": {
+      "title": "Progress Entry",
+      "description": "Biometric and strength trend tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "weightKg": { "type": "number" },
+        "bodyFatPct": { "type": "number" },
+        "benchKg": { "type": "number" },
+        "squatKg": { "type": "number" },
+        "deadliftKg": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "userId", "date"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Individual user profiles"
+    },
+    "/workouts/{workoutId}": {
+      "schema": "Workout",
+      "description": "Completed workout sessions"
+    },
+    "/nutrition/{nutritionId}": {
+      "schema": "Nutrition",
+      "description": "Daily nutrition logs"
+    },
+    "/progress/{progressId}": {
+      "schema": "Progress",
+      "description": "Periodic progress entries"
+    }
+  }
+}
