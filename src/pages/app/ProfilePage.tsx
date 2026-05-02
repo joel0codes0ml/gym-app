@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  User, 
+  User as UserIcon, 
   Settings, 
   Shield, 
   CreditCard, 
@@ -10,21 +10,52 @@ import {
   LogOut, 
   Camera,
   BadgeCheck,
-  Dumbbell
+  Dumbbell,
+  Loader
 } from 'lucide-react';
 import { Card, Badge, Button } from '@/src/components/ui/LayoutComponents';
-import { MOCK_USER } from '@/src/lib/data';
 import { cn } from '@/src/lib/utils';
+import { useFirebase } from '@/src/components/auth/FirebaseContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/src/lib/firebase';
 
 export default function ProfilePage() {
+  const { user, loading: authLoading, logout } = useFirebase();
+  const [profile, setProfile] = useState<any>(null);
+  const [dataLoading, setDataLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('profile');
+
+  useEffect(() => {
+    async function fetchProfile() {
+      if (!user) return;
+      try {
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setProfile(docSnap.data());
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+      } finally {
+        setDataLoading(false);
+      }
+    }
+
+    if (!authLoading) {
+      if (user) {
+        fetchProfile();
+      } else {
+        setDataLoading(false);
+      }
+    }
+  }, [user, authLoading]);
 
   const settingsGroups = [
     {
       title: "Account",
       items: [
-        { label: "Personal Information", icon: User, desc: "Height, weight, and goals" },
-        { label: "Subscription", icon: CreditCard, desc: "Manage Pro plan", badge: "Pro" },
+        { label: "Personal Information", icon: UserIcon, desc: "Height, weight, and goals" },
+        { label: "Subscription", icon: CreditCard, desc: "Manage Pro plan", badge: profile?.subscriptionTier === 'free' ? undefined : "Pro" },
         { label: "Connected Devices", icon: Globe, desc: "Apple Health, Google Fit" }
       ]
     },
@@ -44,6 +75,19 @@ export default function ProfilePage() {
     }
   ];
 
+  if (authLoading || dataLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader className="animate-spin text-brand" size={40} />
+      </div>
+    );
+  }
+
+  const displayName = profile?.fullName || user?.displayName || 'User';
+  const goal = profile?.goal?.replace('_', ' ') || 'General Fitness';
+  const level = profile?.fitnessLevel || 'Beginner';
+  const avatarUrl = profile?.avatarUrl || user?.photoURL || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=200&auto=format&fit=crop';
+
   return (
     <div className="space-y-8 pb-12">
       {/* Header */}
@@ -54,11 +98,11 @@ export default function ProfilePage() {
         <div className="lg:col-span-1 space-y-6">
           <Card className="text-center py-10">
              <div className="relative inline-block mb-6">
-                <div className="w-32 h-32 rounded-3xl bg-brand/10 border border-brand/20 flex items-center justify-center relative group">
+                <div className="w-32 h-32 rounded-3xl bg-brand/10 border border-brand/20 flex items-center justify-center relative group overflow-hidden">
                    <img 
-                    src={MOCK_USER.avatarUrl} 
-                    alt={MOCK_USER.fullName} 
-                    className="w-24 h-24 rounded-2xl"
+                    src={avatarUrl} 
+                    alt={displayName} 
+                    className="w-full h-full object-cover"
                    />
                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-3xl transition-opacity flex items-center justify-center cursor-pointer">
                       <Camera size={24} className="text-white" />
@@ -68,8 +112,8 @@ export default function ProfilePage() {
                    <BadgeCheck size={18} />
                 </div>
              </div>
-             <h2 className="heading-display text-3xl mb-1">{MOCK_USER.fullName}</h2>
-             <p className="text-text-secondary text-sm mb-6">{MOCK_USER.goal.replace('_', ' ')} • {MOCK_USER.fitnessLevel} Level</p>
+             <h2 className="heading-display text-3xl mb-1">{displayName}</h2>
+             <p className="text-text-secondary text-sm mb-6 uppercase tracking-wider font-bold">{goal} • {level} Level</p>
              <div className="flex justify-center gap-2">
                 <Badge variant="brand">Level 12</Badge>
                 <Badge variant="info">Elite Member</Badge>
@@ -128,7 +172,7 @@ export default function ProfilePage() {
              </div>
            ))}
 
-           <Button variant="danger" className="w-full h-14 mt-8">
+           <Button variant="danger" className="w-full h-14 mt-8" onClick={logout}>
               <LogOut size={20} /> Log Out of GymCoach AI
            </Button>
         </div>

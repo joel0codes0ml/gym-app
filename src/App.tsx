@@ -29,6 +29,9 @@ import ProfilePage from '@/src/pages/app/ProfilePage';
 import { ReactNode } from 'react';
 import { FirebaseProvider } from '@/src/components/auth/FirebaseContext';
 
+import { useFirebase } from '@/src/components/auth/FirebaseContext';
+import { Loader } from 'lucide-react';
+
 function MarketingWrapper({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col">
@@ -41,16 +44,36 @@ function MarketingWrapper({ children }: { children: ReactNode }) {
   );
 }
 
+function ProtectedRoute({ children }: { children: ReactNode }) {
+  const { user, loading } = useFirebase();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader className="animate-spin text-brand" size={40} />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function AppWrapper({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <main className="flex-1 ml-20 md:ml-64 p-4 md:p-8 overflow-y-auto">
-        <div className="max-w-6xl mx-auto">
-          {children}
-        </div>
-      </main>
-    </div>
+    <ProtectedRoute>
+      <div className="flex min-h-screen bg-background">
+        <Sidebar />
+        <main className="flex-1 ml-20 md:ml-64 p-4 md:p-8 overflow-y-auto">
+          <div className="max-w-6xl mx-auto">
+            {children}
+          </div>
+        </main>
+      </div>
+    </ProtectedRoute>
   );
 }
 
@@ -89,7 +112,7 @@ function AppContent() {
       <Route path="/app/nutrition" element={<AppWrapper><PageTransition><NutritionPage /></PageTransition></AppWrapper>} />
       <Route path="/app/progress" element={<AppWrapper><PageTransition><ProgressPage /></PageTransition></AppWrapper>} />
       <Route path="/app/coach" element={<AppWrapper><PageTransition><CoachPage /></PageTransition></AppWrapper>} />
-      <Route path="/app/onboarding" element={<PageTransition><OnboardingPage /></PageTransition>} />
+      <Route path="/app/onboarding" element={<ProtectedRoute><PageTransition><OnboardingPage /></PageTransition></ProtectedRoute>} />
       <Route path="/app/profile" element={<AppWrapper><PageTransition><ProfilePage /></PageTransition></AppWrapper>} />
 
       {/* Fallback */}

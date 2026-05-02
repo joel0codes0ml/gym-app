@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { 
   Flame, 
@@ -9,7 +10,8 @@ import {
   Zap,
   CheckCircle2,
   PlayCircle,
-  Award
+  Award,
+  Loader
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -19,13 +21,13 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell
 } from 'recharts';
 import { Card, Badge, Button } from '@/src/components/ui/LayoutComponents';
-import { MOCK_USER, MOCK_WORKOUTS } from '@/src/lib/data';
-import { Link } from 'react-router-dom';
+import { doc, getDoc } from 'firebase/firestore';
+import { useFirebase } from '@/src/components/auth/FirebaseContext';
+import { db } from '@/src/lib/firebase';
+import { Link, useNavigate } from 'react-router-dom';
+import { cn } from '@/src/lib/utils';
 
 const data = [
   { day: 'Mon', calories: 2100, workouts: 45 },
@@ -38,23 +40,68 @@ const data = [
 ];
 
 export default function DashboardPage() {
+  const { user, loading: authLoading } = useFirebase();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<any>(null);
+  const [dataLoading, setDataLoading] = useState(true);
+
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+  useEffect(() => {
+    async function fetchProfile() {
+      if (!user) return;
+      try {
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setProfile(docSnap.data());
+        } else {
+          // If no profile, redirect to onboarding unless already there
+          navigate('/app/onboarding');
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+      } finally {
+        setDataLoading(false);
+      }
+    }
+
+    if (!authLoading) {
+      if (user) {
+        fetchProfile();
+      } else {
+        setDataLoading(false);
+      }
+    }
+  }, [user, authLoading]);
+
+  if (authLoading || dataLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader className="animate-spin text-brand" size={40} />
+      </div>
+    );
+  }
+
+  const displayName = profile?.fullName?.split(' ')[0] || user?.displayName?.split(' ')[0] || 'Athlete';
+  const streakDays = profile?.streakDays ?? 0;
+  const subscriptionTier = profile?.subscriptionTier || 'Free';
 
   return (
     <div className="space-y-8 pb-12">
       {/* Header */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="heading-display text-4xl md:text-5xl">{greeting}, {MOCK_USER.fullName.split(' ')[0]}</h1>
-          <p className="text-text-secondary mt-1">You're on a <span className="text-brand font-bold">{MOCK_USER.streakDays} day</span> streak. Keep it up!</p>
+          <h1 className="heading-display text-4xl md:text-5xl">{greeting}, {displayName}</h1>
+          <p className="text-text-secondary mt-1">You're on a <span className="text-brand font-bold">{streakDays} day</span> streak. Keep it up!</p>
         </div>
         <div className="flex gap-3">
           <Badge variant="brand" className="h-8 flex items-center gap-1">
             <Flame size={12} className="fill-current" /> Streak Athlete
           </Badge>
           <Badge variant="info" className="h-8 flex items-center gap-1">
-            <Trophy size={12} /> Elite Tier
+            <Trophy size={12} /> {subscriptionTier.charAt(0).toUpperCase() + subscriptionTier.slice(1)} Tier
           </Badge>
         </div>
       </header>
