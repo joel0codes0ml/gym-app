@@ -20,35 +20,8 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/src/lib/firebase';
 
 export default function ProfilePage() {
-  const { user, loading: authLoading, logout } = useFirebase();
-  const [profile, setProfile] = useState<any>(null);
-  const [dataLoading, setDataLoading] = useState(true);
+  const { user, profile, loading: authLoading, logout } = useFirebase();
   const [activeTab, setActiveTab] = useState('profile');
-
-  useEffect(() => {
-    async function fetchProfile() {
-      if (!user) return;
-      try {
-        const docRef = doc(db, 'users', user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setProfile(docSnap.data());
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      } finally {
-        setDataLoading(false);
-      }
-    }
-
-    if (!authLoading) {
-      if (user) {
-        fetchProfile();
-      } else {
-        setDataLoading(false);
-      }
-    }
-  }, [user, authLoading]);
 
   const settingsGroups = [
     {
@@ -75,7 +48,7 @@ export default function ProfilePage() {
     }
   ];
 
-  if (authLoading || dataLoading) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader className="animate-spin text-brand" size={40} />

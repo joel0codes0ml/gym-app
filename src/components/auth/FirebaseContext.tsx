@@ -1,9 +1,26 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
-import { auth } from '@/src/lib/firebase';
+import { auth, db } from '@/src/lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+
+interface UserProfile {
+  id: string;
+  fullName: string;
+  avatarUrl: string;
+  age: number;
+  weightKg: number;
+  heightCm: number;
+  goal: string;
+  fitnessLevel: string;
+  planId: string;
+  subscriptionTier: string;
+  streakDays: number;
+  createdAt: string;
+}
 
 interface FirebaseContextType {
   user: User | null;
+  profile: UserProfile | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -13,16 +30,39 @@ const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined
 
 export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       setUser(user);
-      setLoading(false);
+      if (!user) {
+        setProfile(null);
+        setLoading(false);
+      }
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
+
+  useEffect(() => {
+    let unsubscribeProfile: () => void = () => {};
+
+    if (user) {
+      const docRef = doc(db, 'users', user.uid);
+      unsubscribeProfile = onSnapshot(docRef, (doc) => {
+        if (doc.exists()) {
+          setProfile(doc.data() as UserProfile);
+        }
+        setLoading(false);
+      }, (error) => {
+        console.error("Error fetching profile:", error);
+        setLoading(false);
+      });
+    }
+
+    return () => unsubscribeProfile();
+  }, [user]);
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
@@ -42,7 +82,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <FirebaseContext.Provider value={{ user, loading, signInWithGoogle, logout }}>
+    <FirebaseContext.Provider value={{ user, profile, loading, signInWithGoogle, logout }}>
       {children}
     </FirebaseContext.Provider>
   );

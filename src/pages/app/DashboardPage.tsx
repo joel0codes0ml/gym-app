@@ -26,7 +26,7 @@ import { Card, Badge, Button } from '@/src/components/ui/LayoutComponents';
 import { doc, getDoc } from 'firebase/firestore';
 import { useFirebase } from '@/src/components/auth/FirebaseContext';
 import { db } from '@/src/lib/firebase';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { cn } from '@/src/lib/utils';
 
 const data = [
@@ -40,48 +40,29 @@ const data = [
 ];
 
 export default function DashboardPage() {
-  const { user, loading: authLoading } = useFirebase();
+  const { user, profile, loading: authLoading } = useFirebase();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<any>(null);
-  const [dataLoading, setDataLoading] = useState(true);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   useEffect(() => {
-    async function fetchProfile() {
-      if (!user) return;
-      try {
-        const docRef = doc(db, 'users', user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setProfile(docSnap.data());
-        } else {
-          // If no profile, redirect to onboarding unless already there
-          navigate('/app/onboarding');
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      } finally {
-        setDataLoading(false);
-      }
+    if (!authLoading && user && !profile) {
+      // Check if profile exists; if not after auth loading, might need onboarding
+      // We rely on the context loading state which covers both
     }
+  }, [user, authLoading, profile]);
 
-    if (!authLoading) {
-      if (user) {
-        fetchProfile();
-      } else {
-        setDataLoading(false);
-      }
-    }
-  }, [user, authLoading]);
-
-  if (authLoading || dataLoading) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader className="animate-spin text-brand" size={40} />
       </div>
     );
+  }
+
+  if (user && !profile) {
+    return <Navigate to="/app/onboarding" replace />;
   }
 
   const displayName = profile?.fullName?.split(' ')[0] || user?.displayName?.split(' ')[0] || 'Athlete';
@@ -292,8 +273,4 @@ export default function DashboardPage() {
       </div>
     </div>
   );
-}
-
-function cn(...classes: any[]) {
-  return classes.filter(Boolean).join(' ');
 }

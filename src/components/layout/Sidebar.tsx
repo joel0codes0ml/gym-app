@@ -55,7 +55,7 @@ function SidebarItem({ icon: Icon, label, href, collapsed, active }: SidebarItem
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { user, logout } = useFirebase();
+  const { user, profile, logout } = useFirebase();
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/app/dashboard' },
@@ -87,16 +87,18 @@ export function Sidebar() {
       {/* User Info (Mini) */}
       {!collapsed && user && (
         <div className="px-6 mb-6 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand font-bold">
-            {user.photoURL ? (
-              <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full rounded-xl" />
+          <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand font-bold overflow-hidden">
+            {profile?.avatarUrl || user.photoURL ? (
+              <img src={profile?.avatarUrl || user.photoURL || ''} alt={profile?.fullName || user.displayName || ''} className="w-full h-full object-cover" />
             ) : (
-              (user.displayName || 'U').charAt(0)
+              (profile?.fullName || user.displayName || 'U').charAt(0)
             )}
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-sm font-bold truncate leading-tight">{user.displayName || 'User'}</span>
-            <span className="text-[10px] text-text-muted uppercase font-bold tracking-widest leading-tight">Pro Member</span>
+            <span className="text-sm font-bold truncate leading-tight">{profile?.fullName || user.displayName || 'User'}</span>
+            <span className="text-[10px] text-text-muted uppercase font-bold tracking-widest leading-tight">
+              {profile?.subscriptionTier === 'elite' ? 'Elite Member' : profile?.subscriptionTier === 'pro' ? 'Pro Member' : 'Free Member'}
+            </span>
           </div>
         </div>
       )}
@@ -124,10 +126,10 @@ export function Sidebar() {
                 <Flame size={16} className="text-brand" />
                 <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">Streak</span>
               </div>
-              <span className="text-sm font-mono text-brand">7 Days</span>
+              <span className="text-sm font-mono text-brand">{profile?.streakDays || 0} Days</span>
             </div>
             <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-brand h-full w-[70%]" />
+              <div className="bg-brand h-full transition-all duration-1000" style={{ width: `${Math.min(100, ((profile?.streakDays || 0) / 30) * 100)}%` }} />
             </div>
           </div>
         </div>
